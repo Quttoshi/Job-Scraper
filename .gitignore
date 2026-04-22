@@ -1,0 +1,24 @@
+# Environment variables (contain credentials)
+.env
+
+# n8n local data
+n8n_data/
+
+# Docker volumes
+postgres_data/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

@@ -1,0 +1,147 @@
+{
+  "name": "JobSpy - AI Jobs",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "c3c3c3c3-0001-0001-0001-c3c3c3c3c3c3",
+      "name": "Every 1 Hour",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  { json: { search: 'AI Engineer',        location: 'Islamabad, Pakistan' } },\n  { json: { search: 'AI Engineer',        location: 'Rawalpindi, Pakistan' } },\n  { json: { search: 'AI Engineer',        location: 'Lahore, Pakistan' } },\n  { json: { search: 'AI Engineer',        location: 'Karachi, Pakistan' } },\n  { json: { search: 'AI Engineer',        location: 'remote' } },\n  { json: { search: 'Junior AI Engineer', location: 'Islamabad, Pakistan' } },\n  { json: { search: 'Junior AI Engineer', location: 'Lahore, Pakistan' } },\n  { json: { search: 'Junior AI Engineer', location: 'remote' } }\n];"
+      },
+      "id": "c3c3c3c3-0009-0009-0009-c3c3c3c3c3c3",
+      "name": "Define Searches",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://jobspy:8000/jobs",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "search",    "value": "={{ $json.search }}" },
+            { "name": "location",  "value": "={{ $json.location }}" },
+            { "name": "sites",     "value": "indeed,linkedin" },
+            { "name": "results",   "value": "25" },
+            { "name": "hours_old", "value": "72" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c3c3c3c3-0003-0003-0003-c3c3c3c3c3c3",
+      "name": "Fetch All Jobs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const PAKISTAN_CITIES = ['pakistan', 'islamabad', 'rawalpindi', 'lahore', 'karachi', 'peshawar'];\n\nfunction isEligible(job) {\n  if (job.is_remote === true) return true;\n  const location = (job.location || '').toLowerCase();\n  if (PAKISTAN_CITIES.some(city => location.includes(city))) return true;\n  const fields = [\n    location,\n    (job.tags || '').toLowerCase(),\n    (job.title || '').slice(0, 100).toLowerCase(),\n    (job.description || '').slice(0, 500).toLowerCase()\n  ].join(' ');\n  return /\\bremote\\b|work from home|\\bwfh\\b|fully remote/.test(fields);\n}\n\nconst results = [];\nconst seen = new Set();\n\nfor (const input of $input.all()) {\n  const jobs = input.json?.data || [];\n  for (const job of jobs) {\n    if (!job.job_id || seen.has(job.job_id)) continue;\n    if (!isEligible(job)) continue;\n    seen.add(job.job_id);\n    results.push({ json: job });\n  }\n}\n\nreturn results;"
+      },
+      "id": "c3c3c3c3-0005-0005-0005-c3c3c3c3c3c3",
+      "name": "Deduplicate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [860, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const AI_KEYWORDS = [\n  'ai engineer',\n  'junior ai',\n  'ai/ml',\n  'ai ml',\n  'agentic',\n  'artificial intelligence',\n  'machine learning',\n  'ml engineer',\n  'automation engineer',\n  'ai specialist'\n];\n\nconst keywords = AI_KEYWORDS.map(k => k.toLowerCase());\n\nreturn $input.all().filter(item => {\n  const title = (item.json.title || '').toLowerCase();\n  const tags = (item.json.tags || '').toLowerCase();\n  const searchText = title + ' ' + tags;\n  return keywords.some(kw => searchText.includes(kw));\n});"
+      },
+      "id": "c3c3c3c3-0008-0008-0008-c3c3c3c3c3c3",
+      "name": "Filter AI Jobs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1080, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Matches patterns like: '2 years', '3+ years', '2-4 years', '2 years of experience'\n// Captures the minimum number of years required.\nconst EXP_RE = /(\\d+)\\s*(?:[-–]\\s*\\d+)?\\s*\\+?\\s*years?(?:\\s+of)?(?:\\s+experience)?/gi;\n\nfunction minYearsRequired(text) {\n  const matches = [...text.matchAll(EXP_RE)];\n  if (matches.length === 0) return null;\n  return Math.min(...matches.map(m => parseInt(m[1], 10)));\n}\n\nreturn $input.all().filter(item => {\n  const text = [\n    (item.json.title       || ''),\n    (item.json.description || '')\n  ].join(' ');\n\n  const minYears = minYearsRequired(text);\n\n  // No experience mentioned — let it through\n  if (minYears === null) return true;\n\n  // Mentioned — only keep if strictly less than 2 years\n  return minYears < 2;\n});"
+      },
+      "id": "c3c3c3c3-0010-0010-0010-c3c3c3c3c3c3",
+      "name": "Filter Experience",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1300, 300]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1EwIFfQlhb9sneKXWhwpQPCZL3DrIjXDtxxUx52IHBpE",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "c3c3c3c3-0007-0007-0007-c3c3c3c3c3c3",
+      "name": "Sheets - AI Jobs",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [1520, 300]
+    }
+  ],
+  "connections": {
+    "Every 1 Hour": {
+      "main": [
+        [{ "node": "Define Searches", "type": "main", "index": 0 }]
+      ]
+    },
+    "Define Searches": {
+      "main": [
+        [{ "node": "Fetch All Jobs", "type": "main", "index": 0 }]
+      ]
+    },
+    "Fetch All Jobs": {
+      "main": [
+        [{ "node": "Deduplicate", "type": "main", "index": 0 }]
+      ]
+    },
+    "Deduplicate": {
+      "main": [
+        [{ "node": "Filter AI Jobs", "type": "main", "index": 0 }]
+      ]
+    },
+    "Filter AI Jobs": {
+      "main": [
+        [{ "node": "Filter Experience", "type": "main", "index": 0 }]
+      ]
+    },
+    "Filter Experience": {
+      "main": [
+        [{ "node": "Sheets - AI Jobs", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}

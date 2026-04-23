@@ -20,7 +20,7 @@
     },
     {
       "parameters": {
-        "jsCode": "return [\n  { json: { search: 'AI Engineer', location: 'Islamabad, Pakistan' } },\n  { json: { search: 'AI Engineer', location: 'Lahore, Pakistan' } },\n  { json: { search: 'AI Engineer', location: 'Karachi, Pakistan' } },\n  { json: { search: 'AI Engineer', location: 'Rawalpindi, Pakistan' } },\n  { json: { search: 'Junior AI Engineer', location: 'Islamabad, Pakistan' } },\n  { json: { search: 'Junior AI Engineer', location: 'Lahore, Pakistan' } },\n  { json: { search: 'Junior AI Engineer', location: 'Karachi, Pakistan' } }\n];"
+        "jsCode": "return [\n  { json: { search: 'AI Engineer',        location: 'Islamabad, Pakistan' } },\n  { json: { search: 'AI Engineer',        location: 'Rawalpindi, Pakistan' } },\n  { json: { search: 'AI Engineer',        location: 'Lahore, Pakistan' } },\n  { json: { search: 'AI Engineer',        location: 'Karachi, Pakistan' } },\n  { json: { search: 'Junior AI Engineer', location: 'Islamabad, Pakistan' } },\n  { json: { search: 'Junior AI Engineer', location: 'Rawalpindi, Pakistan' } },\n  { json: { search: 'Junior AI Engineer', location: 'Lahore, Pakistan' } },\n  { json: { search: 'Junior AI Engineer', location: 'Karachi, Pakistan' } }\n];"
       },
       "id": "c3c3c3c3-0009-0009-0009-c3c3c3c3c3c3",
       "name": "Define Searches",
@@ -51,7 +51,7 @@
     },
     {
       "parameters": {
-        "jsCode": "function isPakistaniJob(job) {\n  const location = (job.location || '').toLowerCase();\n  const pakistaniCities = ['islamabad', 'lahore', 'karachi', 'rawalpindi', 'peshawar', 'multan', 'faisalabad', 'quetta', 'gilgit', 'pakistan'];\n  return pakistaniCities.some(city => location.includes(city));\n}\n\nconst results = [];\nconst seen = new Set();\n\nfor (const input of $input.all()) {\n  const jobs = input.json?.data || [];\n  for (const job of jobs) {\n    if (!job.job_id || seen.has(job.job_id)) continue;\n    if (!isPakistaniJob(job)) continue;\n    seen.add(job.job_id);\n    results.push({ json: job });\n  }\n}\n\nreturn results;"
+        "jsCode": "const PAKISTAN_CITIES = ['pakistan', 'islamabad', 'rawalpindi', 'lahore', 'karachi', 'peshawar', 'multan', 'faisalabad'];\n\nfunction isInPakistan(job) {\n  const location = (job.location || '').toLowerCase();\n  return PAKISTAN_CITIES.some(city => location.includes(city));\n}\n\nconst results = [];\nconst seen = new Set();\n\nfor (const input of $input.all()) {\n  const jobs = input.json?.data || [];\n  for (const job of jobs) {\n    if (!job.job_id || seen.has(job.job_id)) continue;\n    if (!isInPakistan(job)) continue;\n    seen.add(job.job_id);\n    results.push({ json: job });\n  }\n}\n\nreturn results;"
       },
       "id": "c3c3c3c3-0005-0005-0005-c3c3c3c3c3c3",
       "name": "Deduplicate",
@@ -71,7 +71,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Matches patterns like: '2 years', '3+ years', '2-4 years', '2 years of experience'\n// Captures the minimum number of years required.\nconst EXP_RE = /(\\d+)\\s*(?:[-–]\\s*\\d+)?\\s*\\+?\\s*years?(?:\\s+of)?(?:\\s+experience)?/gi;\n\nfunction minYearsRequired(text) {\n  const matches = [...text.matchAll(EXP_RE)];\n  if (matches.length === 0) return null;\n  return Math.min(...matches.map(m => parseInt(m[1], 10)));\n}\n\nreturn $input.all().filter(item => {\n  const text = [\n    (item.json.title       || ''),\n    (item.json.description || '')\n  ].join(' ');\n\n  const minYears = minYearsRequired(text);\n\n  // No experience mentioned — let it through (junior/mid-level friendly)\n  if (minYears === null) return true;\n\n  // Mentioned — only keep if less than 5 years (junior/mid-level)\n  // Reject if 5+ years (senior level)\n  return minYears < 5;\n});"
+        "jsCode": "const EXP_RE = /(\\d+)\\s*(?:[-\\u2013]\\s*\\d+)?\\s*\\+?\\s*years?(?:\\s+of)?(?:\\s+experience)?/gi;\n\nfunction minYearsRequired(text) {\n  const matches = [...text.matchAll(EXP_RE)];\n  if (matches.length === 0) return null;\n  return Math.min(...matches.map(m => parseInt(m[1], 10)));\n}\n\nreturn $input.all().filter(item => {\n  const text = [\n    (item.json.title       || ''),\n    (item.json.description || '')\n  ].join(' ');\n\n  const minYears = minYearsRequired(text);\n  if (minYears === null) return true;\n  return minYears < 2;\n});"
       },
       "id": "c3c3c3c3-0010-0010-0010-c3c3c3c3c3c3",
       "name": "Filter Experience",
@@ -81,38 +81,7 @@
     },
     {
       "parameters": {
-        "operation": "read",
-        "documentId": {
-          "__rl": true,
-          "value": "1EwIFfQlhb9sneKXWhwpQPCZL3DrIjXDtxxUx52IHBpE",
-          "mode": "id"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": "Sheet1",
-          "mode": "name"
-        },
-        "options": {}
-      },
-      "id": "c3c3c3c3-0014-0014-0014-c3c3c3c3c3c3",
-      "name": "Read Existing Jobs",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.4,
-      "position": [1520, 500]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Get existing job IDs from the sheet (first input)\nconst allInputs = $input.all();\nif (allInputs.length === 0) return [];\n\nconst sheetData = Array.isArray(allInputs[0].json) ? allInputs[0].json : [];\nconst existingIds = new Set();\n\nsheetData.forEach(row => {\n  if (row.job_id) existingIds.add(String(row.job_id));\n});\n\n// Filter out duplicates from remaining inputs\nconst results = [];\nfor (let i = 1; i < allInputs.length; i++) {\n  const job = allInputs[i].json;\n  if (job.job_id && !existingIds.has(String(job.job_id))) {\n    results.push({ json: job });\n  }\n}\n\nreturn results;"
-      },
-      "id": "c3c3c3c3-0012-0012-0012-c3c3c3c3c3c3",
-      "name": "Filter New Jobs Only",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [1740, 400]
-    },
-    {
-      "parameters": {
-        "operation": "append",
+        "operation": "appendOrUpdate",
         "documentId": {
           "__rl": true,
           "value": "1EwIFfQlhb9sneKXWhwpQPCZL3DrIjXDtxxUx52IHBpE",
@@ -126,16 +95,16 @@
         "columns": {
           "mappingMode": "autoMapInputData",
           "value": {},
-          "matchingColumns": [],
+          "matchingColumns": ["job_id"],
           "schema": []
         },
         "options": {}
       },
       "id": "c3c3c3c3-0007-0007-0007-c3c3c3c3c3c3",
-      "name": "AI Jobs",
+      "name": "Sheets - AI Jobs",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.4,
-      "position": [1960, 400]
+      "position": [1520, 300]
     }
   ],
   "connections": {
@@ -166,20 +135,7 @@
     },
     "Filter Experience": {
       "main": [
-        [
-          { "node": "Read Existing Jobs", "type": "main", "index": 0 },
-          { "node": "Filter New Jobs Only", "type": "main", "index": 0 }
-        ]
-      ]
-    },
-    "Read Existing Jobs": {
-      "main": [
-        [{ "node": "Filter New Jobs Only", "type": "main", "index": 0 }]
-      ]
-    },
-    "Filter New Jobs Only": {
-      "main": [
-        [{ "node": "AI Jobs", "type": "main", "index": 0 }]
+        [{ "node": "Sheets - AI Jobs", "type": "main", "index": 0 }]
       ]
     }
   },

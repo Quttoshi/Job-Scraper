@@ -1,22 +1,22 @@
 # AI Job Scraper
 
-Automatically scrapes AI/ML job postings from Indeed and LinkedIn every hour and saves them to Google Sheets. Built with JobSpy, FastAPI, and n8n.
+Automatically scrapes AI/ML job postings from Indeed and LinkedIn every hour for jobs based in Pakistan and saves them to Google Sheets. Built with JobSpy, FastAPI, and n8n.
 
 ## How It Works
 
-```
+```text
 n8n (scheduler) → JobSpy API → Indeed / LinkedIn → Google Sheets
 ```
 
-1. n8n triggers every hour and fires 8 search queries (different roles + locations)
+1. n8n triggers every hour and fires 8 search queries (different roles + Pakistan cities)
 2. The JobSpy API scrapes each job board and returns normalized job data
 3. n8n deduplicates results, filters by AI keywords, drops jobs requiring 2+ years of experience, and appends to Google Sheets
 
 ## Filters Applied
 
 | Filter | Rule |
-|---|---|
-| Location | Pakistan cities (onsite) or remote |
+| --- | --- |
+| Location | Pakistan only (Islamabad, Rawalpindi, Lahore, Karachi) |
 | Keywords | AI Engineer, ML Engineer, Junior AI, Agentic, etc. |
 | Experience | Less than 2 years — if mentioned; passes through if not mentioned |
 
@@ -29,7 +29,7 @@ n8n (scheduler) → JobSpy API → Indeed / LinkedIn → Google Sheets
 
 ## Project Structure
 
-```
+```text
 .
 ├── docker-compose.yml        # Defines n8n + jobspy services
 ├── schema.sql                # PostgreSQL schema (optional, not used by default)
@@ -87,7 +87,7 @@ docker compose up -d
 ### `GET /jobs`
 
 | Parameter | Type | Default | Description |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `search` | string | required | Job title or keywords |
 | `location` | string | `remote` | City, country, or `remote` |
 | `sites` | string | `indeed,linkedin,glassdoor` | Comma-separated site list |
@@ -129,7 +129,7 @@ curl "http://localhost:8000/jobs?search=AI+Engineer&location=Islamabad,+Pakistan
 ## Environment Variables
 
 | Variable | Description |
-|---|---|
+| --- | --- |
 | `N8N_BASIC_AUTH_USER` | n8n login username |
 | `N8N_BASIC_AUTH_PASSWORD` | n8n login password |
 | `TIMEZONE` | Timezone for the scheduler (e.g. `Asia/Karachi`) |
@@ -141,7 +141,7 @@ Edit the **Define Searches** Code node in n8n (or directly in `workflows/jobspy_
 ```js
 return [
   { json: { search: 'AI Engineer', location: 'Islamabad, Pakistan' } },
-  { json: { search: 'ML Engineer', location: 'remote' } },
+  { json: { search: 'ML Engineer', location: 'Lahore, Pakistan' } },
   // add more...
 ];
 ```
